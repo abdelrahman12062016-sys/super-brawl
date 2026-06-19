@@ -27,6 +27,18 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -69,6 +81,19 @@ fun GamePlayScreen(
     }
 
     val engine = engineState.value
+
+    // Focus management for keyboard inputs
+    val focusRequester = remember { FocusRequester() }
+    val keysHeld = remember { mutableStateMapOf<Key, Boolean>() }
+    LaunchedEffect(Unit) {
+        // Staggered attempts to request focus of keyboard on screen launch
+        delay(100)
+        focusRequester.requestFocus()
+        delay(300)
+        focusRequester.requestFocus()
+        delay(600)
+        focusRequester.requestFocus()
+    }
 
     // 2. Controller Button States
     var leftPressed by remember { mutableStateOf(false) }
@@ -127,6 +152,75 @@ fun GamePlayScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0B0F19)) // Cool slate dark outer
+            .onKeyEvent { keyEvent ->
+                val key = keyEvent.key
+                val isKeyDown = keyEvent.type == KeyEventType.KeyDown
+                val isKeyUp = keyEvent.type == KeyEventType.KeyUp
+                
+                if (isKeyDown) {
+                    val isRepeat = keysHeld.containsKey(key)
+                    keysHeld[key] = true
+                    
+                    when (key) {
+                        Key.DirectionLeft, Key.A -> { leftPressed = true; true }
+                        Key.DirectionRight, Key.D -> { rightPressed = true; true }
+                        Key.DirectionDown, Key.S -> { downPressed = true; true }
+                        Key.DirectionUp, Key.W, Key.Spacebar -> {
+                            if (!isRepeat) {
+                                jumpPressed = true
+                            }
+                            true
+                        }
+                        Key.J, Key.I -> { // Support J or I keys for normal attack (A)
+                            if (!isRepeat) {
+                                attackPressed = true
+                            }
+                            true
+                        }
+                        Key.K, Key.O -> { // Support K or O keys for special attack (B)
+                            if (!isRepeat) {
+                                specialPressed = true
+                            }
+                            true
+                        }
+                        Key.L, Key.P -> { // Support L or P keys for shield (S)
+                            shieldPressed = true
+                            true
+                        }
+                        else -> false
+                    }
+                } else if (isKeyUp) {
+                    keysHeld.remove(key)
+                    when (key) {
+                        Key.DirectionLeft, Key.A -> { leftPressed = false; true }
+                        Key.DirectionRight, Key.D -> { rightPressed = false; true }
+                        Key.DirectionDown, Key.S -> { downPressed = false; true }
+                        Key.DirectionUp, Key.W, Key.Spacebar -> {
+                            true
+                        }
+                        Key.J, Key.I -> {
+                            true
+                        }
+                        Key.K, Key.O -> {
+                            true
+                        }
+                        Key.L, Key.P -> {
+                            shieldPressed = false
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
+            .focusRequester(focusRequester)
+            .focusable()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { focusRequester.requestFocus() }
+            )
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -315,6 +409,23 @@ fun GamePlayScreen(
                             }
                         }
                     }
+                }
+
+                // Keyboard Controls Legend overlay at the bottom center of the fight screen canvas
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 6.dp)
+                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "⌨️ Keyboard Controls: [A/D] or [◀/▶] Move | [W/Space] Jump | [S] Crouch | [J] Attack | [K] Special | [L] Shield",
+                        color = Color.White.copy(alpha = 0.95f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
@@ -737,14 +848,27 @@ fun GameControllerButton(
             .clip(CircleShape)
             .background(color.copy(alpha = 0.15f))
             .border(2.dp, color, CircleShape)
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
+            .pointerInput(onPressedStateChanged) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    onPressedStateChanged(true)
+                    
+                    var isInside = true
+                    do {
                         val event = awaitPointerEvent()
-                        val change = event.changes.first()
-                        val pressed = change.pressed
-                        onPressedStateChanged(pressed)
-                    }
+                        val change = event.changes.firstOrNull()
+                        if (change != null) {
+                            val position = change.position
+                            isInside = position.x in 0f..size.width.toFloat() &&
+                                       position.y in 0f..size.height.toFloat()
+                            val pressed = change.pressed && isInside
+                            onPressedStateChanged(pressed)
+                        } else {
+                            onPressedStateChanged(false)
+                        }
+                    } while (event.changes.any { it.pressed })
+                    
+                    onPressedStateChanged(false)
                 }
             },
         contentAlignment = Alignment.Center
