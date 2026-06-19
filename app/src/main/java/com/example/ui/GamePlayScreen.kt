@@ -1018,10 +1018,25 @@ private fun DrawScope.drawFighter(fighter: FighterState, scaleX: Float, scaleY: 
     // Invincible flashing ghost effect
     val alpha = if (fighter.isInvincible && (tick / 4) % 2 == 0) 0.35f else 1.0f
 
-    // 1. Fighter Body Gradient
+    // --- COOL DETAILED ACTION TRAIL (Motion Blur Effect) ---
+    val speedVal = kotlin.math.sqrt(fighter.vx * fighter.vx + fighter.vy * fighter.vy)
+    if (speedVal > 1.2f) {
+        // Draw transparent kinetic shadows behind the movement path
+        for (i in 1..2) {
+            val backX = fx - fighter.vx * i * 3.2f * scaleX / 4.8f
+            val backY = fy - fighter.vy * i * 3.2f * scaleY / 4.8f
+            drawCircle(
+                color = fighter.selection.primaryColor.copy(alpha = (0.28f / i) * alpha),
+                radius = radius * (1f - i * 0.12f),
+                center = Offset(backX, backY)
+            )
+        }
+    }
+
+    // 1. Fighter Body Gradient (Sleek deep volumetric 3D look)
     val bodyGrad = Brush.radialGradient(
         colors = listOf(Color.White, fighter.selection.primaryColor),
-        center = Offset(fx - radius * 0.3f, fy - radius * 0.3f),
+        center = Offset(fx - radius * 0.25f, fy - radius * 0.25f),
         radius = radius
     )
 
@@ -1034,89 +1049,250 @@ private fun DrawScope.drawFighter(fighter: FighterState, scaleX: Float, scaleY: 
 
     // Outline character
     drawCircle(
-        color = Color.White.copy(alpha = 0.4f),
+        color = Color.White.copy(alpha = 0.45f),
         radius = radius,
         center = Offset(fx, fy),
-        style = Stroke(width = 1.5.dp.toPx())
+        style = Stroke(width = 1.8.dp.toPx())
     )
 
-    // 2. Draw Fighter Direction Eyes
     val facingLeft = fighter.isFacingLeft
-    val eyeOffset = if (facingLeft) -7.dp.toPx() else 7.dp.toPx()
-    val eyeHeightOffset = -3.dp.toPx()
 
-    // Draw little character eye or plate detail
-    drawCircle(
-        color = Color.White,
-        radius = 4.dp.toPx(),
-        center = Offset(fx + eyeOffset, fy + eyeHeightOffset),
-        alpha = alpha
-    )
-    drawCircle(
-        color = Color.Black,
-        radius = 2.dp.toPx(),
-        center = Offset(fx + eyeOffset + (if (facingLeft) -1f else 1f).dp.toPx(), fy + eyeHeightOffset),
-        alpha = alpha
-    )
-
-    // Draw dynamic brawler accessories
+    // --- CHARACTER SPECIAL ACCESSORIES & DETAILED FEATURES ---
     when (fighter.selection) {
         FighterSelection.PLUMBER_JOE -> {
-            // Little plumber hat brim line
+            // Cool Plumber Mustache
+            val mustX = fx + if (facingLeft) -6.dp.toPx() else 6.dp.toPx()
+            val mustY = fy + 3.dp.toPx()
+            drawRoundRect(
+                color = Color(0xFF3E2723), // Deep brown/black moustache
+                topLeft = Offset(mustX - 6.dp.toPx(), mustY),
+                size = Size(12.dp.toPx(), 4.dp.toPx()),
+                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+                alpha = alpha
+            )
+            // Oversized Plumber Cap Brim
             drawLine(
-                color = Color.Red,
-                start = Offset(fx - 10.dp.toPx(), fy - 8.dp.toPx()),
-                end = Offset(fx + 10.dp.toPx(), fy - 8.dp.toPx()),
-                strokeWidth = 3.dp.toPx(),
+                color = Color(0xFFD32F2F), // Caps Red
+                start = Offset(fx - 13.dp.toPx(), fy - 11.dp.toPx()),
+                end = Offset(fx + 13.dp.toPx(), fy - 11.dp.toPx()),
+                strokeWidth = 4.5.dp.toPx(),
+                alpha = alpha
+            )
+            // Little White Badge on Plumber's Cap
+            drawCircle(
+                color = Color.White,
+                radius = 3.dp.toPx(),
+                center = Offset(fx, fy - 14.dp.toPx()),
+                alpha = alpha
+            )
+            drawCircle(
+                color = Color(0xFFD32F2F),
+                radius = 1.5.dp.toPx(),
+                center = Offset(fx, fy - 14.dp.toPx()),
                 alpha = alpha
             )
         }
         FighterSelection.SHADOW_HUNTER -> {
-            // Dark ninja eye mask wrap
+            // Dark ninja eye mask wrap background
             drawRect(
-                color = Color.Black,
-                topLeft = Offset(fx - 12.dp.toPx(), fy - 5.dp.toPx()),
-                size = Size(24.dp.toPx(), 4.dp.toPx()),
+                color = Color(0xFF111111),
+                topLeft = Offset(fx - 13.dp.toPx(), fy - 6.dp.toPx()),
+                size = Size(26.dp.toPx(), 5.dp.toPx()),
                 alpha = alpha
             )
-        }
-        FighterSelection.ELVEN_ARCHER -> {
-            // Little green cap feather
+            // Glowing neon purple slit eyes (Cyberpunk Ninja feel)
+            val leftSlitX = fx + (if (facingLeft) -10.dp.toPx() else 3.dp.toPx())
+            val rightSlitX = fx + (if (facingLeft) -3.dp.toPx() else 10.dp.toPx())
             drawLine(
-                color = Color.Yellow,
-                start = Offset(fx - 2.dp.toPx(), fy - 18.dp.toPx()),
-                end = Offset(fx + 5.dp.toPx(), fy - 24.dp.toPx()),
+                color = Color(0xFFD500F9), // Glowing Neon Violet
+                start = Offset(leftSlitX, fy - 4.dp.toPx()),
+                end = Offset(leftSlitX + (if (facingLeft) 3.dp.toPx() else -3.dp.toPx()), fy - 2.dp.toPx()),
+                strokeWidth = 2.dp.toPx(),
+                alpha = alpha
+            )
+            
+            // Flowing Ninja Mask Scarf ribbons behind the brawler
+            val knotDirection = if (facingLeft) 11.dp.toPx() else -11.dp.toPx()
+            val waveY = sin(tick * 0.16f) * 4.dp.toPx()
+            val knotX = fx + knotDirection
+            val knotY = fy + 3.dp.toPx()
+            
+            // Draw ribbons
+            drawCircle(color = Color(0xFF7B1FA2), radius = 2.5.dp.toPx(), center = Offset(knotX, knotY), alpha = alpha)
+            drawLine(
+                color = Color(0xFF9C27B0),
+                start = Offset(knotX, knotY),
+                end = Offset(knotX + knotDirection, knotY + 4.dp.toPx() + waveY),
+                strokeWidth = 3.dp.toPx(),
+                alpha = alpha
+            )
+            drawLine(
+                color = Color(0xFFE040FB),
+                start = Offset(knotX, knotY),
+                end = Offset(knotX + knotDirection * 1.3f, knotY + 1.dp.toPx() + waveY * 0.7f),
                 strokeWidth = 2.dp.toPx(),
                 alpha = alpha
             )
         }
+        FighterSelection.ELVEN_ARCHER -> {
+            // Green woodland hood draped over head
+            drawArc(
+                color = Color(0xFF1B5E20),
+                startAngle = 180f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(fx - radius * 1.05f, fy - radius * 1.05f),
+                size = Size(radius * 2.1f, radius * 2.1f),
+                alpha = alpha * 0.85f
+            )
+            // Wooden composite bow on his back
+            val bowBackX = if (facingLeft) 9.dp.toPx() else -9.dp.toPx()
+            drawArc(
+                color = Color(0xFF5D4037), // Polished wood bow
+                startAngle = if (facingLeft) 45f else 225f,
+                sweepAngle = 90f,
+                useCenter = false,
+                topLeft = Offset(fx + bowBackX - 12.dp.toPx(), fy - 12.dp.toPx()),
+                size = Size(24.dp.toPx(), 24.dp.toPx()),
+                style = Stroke(width = 3.dp.toPx()),
+                alpha = alpha
+            )
+            // Little woodland Archer Cap yellow feather
+            drawLine(
+                color = Color(0xFFFFEB3B),
+                start = Offset(fx - 1.dp.toPx(), fy - 19.dp.toPx()),
+                end = Offset(fx + 6.dp.toPx(), fy - 26.dp.toPx()),
+                strokeWidth = 2.5.dp.toPx(),
+                alpha = alpha
+            )
+        }
         FighterSelection.SPARKY -> {
+            // Iconic golden yellow zigzag dynamic lightning tail
+            val tailLeft = facingLeft
+            val tDir = if (tailLeft) 1f else -1f
+            val sX = fx + tDir * 12.dp.toPx()
+            val sY = fy + 5.dp.toPx()
+            val p1x = sX + tDir * 8.dp.toPx()
+            val p1y = sY - 5.dp.toPx()
+            val p2x = p1x - tDir * 4.dp.toPx()
+            val p2y = p1y - 9.dp.toPx()
+            val p3x = p2x + tDir * 12.dp.toPx()
+            val p3y = p2y - 11.dp.toPx()
+
+            drawLine(Color(0xFFE65100), Offset(sX, sY), Offset(p1x, p1y), 4.5.dp.toPx(), alpha = alpha)
+            drawLine(Color(0xFFFBC02D), Offset(p1x, p1y), Offset(p2x, p2y), 4.5.dp.toPx(), alpha = alpha)
+            drawLine(Color(0xFFFFF59D), Offset(p2x, p2y), Offset(p3x, p3y), 5.dp.toPx(), alpha = alpha)
+
             // Rosy cheeks
             drawCircle(
-                color = Color.Red,
-                radius = 3.dp.toPx(),
-                center = Offset(fx + (if (facingLeft) -11f else 11f).dp.toPx(), fy + 2.dp.toPx()),
-                alpha = alpha * 0.75f
+                color = Color(0xFFD32F2F),
+                radius = 3.5.dp.toPx(),
+                center = Offset(fx + (if (tailLeft) -11f else 11f).dp.toPx(), fy + 2.dp.toPx()),
+                alpha = alpha
+            )
+
+            // Continuous Electrical Orbit sparks
+            val sparkAngle = ((tick * 12) % 628) * 0.01f
+            val pathRadius = radius * 1.35f
+            val sparkX = fx + pathRadius * cos(sparkAngle).toFloat()
+            val sparkY = fy + pathRadius * sin(sparkAngle).toFloat()
+            drawCircle(
+                color = Color.White,
+                radius = 2.dp.toPx(),
+                center = Offset(sparkX, sparkY),
+                alpha = alpha
+            )
+            drawCircle(
+                color = Color(0xFFFBC02D),
+                radius = 4.dp.toPx(),
+                center = Offset(sparkX, sparkY),
+                style = Stroke(width = 1.dp.toPx()),
+                alpha = alpha * 0.6f
             )
         }
         FighterSelection.IRON_GOLEM -> {
-            // Hexagonal shield armor plate look
+            // Hexagonal shield grid armor pattern
             drawCircle(
-                color = Color.Black.copy(alpha = 0.5f),
-                radius = radius * 0.5f,
+                color = Color.Black.copy(alpha = 0.55f),
+                radius = radius * 0.55f,
                 center = Offset(fx, fy),
-                style = Stroke(width = 1.dp.toPx())
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+            drawLine(
+                color = Color(0xFF26C6DA),
+                start = Offset(fx - radius * 0.7f, fy),
+                end = Offset(fx + radius * 0.7f, fy),
+                strokeWidth = 2.dp.toPx(),
+                alpha = alpha
+            )
+            // Cybernetic Crimson Core Eye glowing heavily
+            val eyeX = fx + (if (facingLeft) -7.dp.toPx() else 7.dp.toPx())
+            drawCircle(
+                color = Color(0xFFFF1744), // High-intensity glowing neon crimson
+                radius = 4.dp.toPx(),
+                center = Offset(eyeX, fy - 4.dp.toPx()),
+                alpha = alpha
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 1.5.dp.toPx(),
+                center = Offset(eyeX, fy - 4.dp.toPx()),
+                alpha = alpha
             )
         }
         FighterSelection.PINK_PUFF -> {
+            // Cute tiny stubby red boots/shoes at the bottom
+            val shoeColor = Color(0xFFFF1744)
+            drawCircle(
+                color = shoeColor,
+                radius = 4.5.dp.toPx(),
+                center = Offset(fx - 10.dp.toPx(), fy + radius * 0.85f),
+                alpha = alpha
+            )
+            drawCircle(
+                color = shoeColor,
+                radius = 4.5.dp.toPx(),
+                center = Offset(fx + 10.dp.toPx(), fy + radius * 0.85f),
+                alpha = alpha
+            )
+
+            // Tiny stubby hands waving
+            val waveOffset = sin(tick * 0.2f) * 3f
+            val handX = fx + (if (facingLeft) -11f else 11f).dp.toPx()
+            val handY = fy + 3.dp.toPx() + waveOffset
+            drawCircle(
+                color = fighter.selection.primaryColor,
+                radius = 3.5.dp.toPx(),
+                center = Offset(handX, handY),
+                alpha = alpha
+            )
+
             // Pink cute star blush
             drawCircle(
-                color = Color.Magenta.copy(alpha = 0.5f),
-                radius = 3.dp.toPx(),
+                color = Color(0xFFF06292).copy(alpha = 0.7f),
+                radius = 3.5.dp.toPx(),
                 center = Offset(fx + (if (facingLeft) -10f else 10f).dp.toPx(), fy + 2.dp.toPx()),
                 alpha = alpha
             )
         }
+    }
+
+    // 2. Base Character Eye (Overlay on top of custom skins to keep general expressiveness)
+    if (fighter.selection != FighterSelection.SHADOW_HUNTER) {
+        val eyeOffset = if (facingLeft) -7.dp.toPx() else 7.dp.toPx()
+        val eyeHeightOffset = -3.dp.toPx()
+        drawCircle(
+            color = Color.White,
+            radius = 3.5.dp.toPx(),
+            center = Offset(fx + eyeOffset, fy + eyeHeightOffset),
+            alpha = alpha
+        )
+        drawCircle(
+            color = Color.Black,
+            radius = 1.8.dp.toPx(),
+            center = Offset(fx + eyeOffset + (if (facingLeft) -0.8f else 0.8f).dp.toPx(), fy + eyeHeightOffset),
+            alpha = alpha
+        )
     }
 
     // 3. Draw Active Shield Overlay (If blocking)
